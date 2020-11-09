@@ -20,8 +20,10 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"testing"
+	"time"
 
-	"go.etcd.io/etcd/etcdserver"
+	"go.etcd.io/etcd/server/v3/etcdserver"
 )
 
 const etcdProcessBasePort = 20000
@@ -88,7 +90,7 @@ var (
 	configJWT = etcdProcessClusterConfig{
 		clusterSize:   1,
 		initialToken:  "new",
-		authTokenOpts: "jwt,pub-key=../../integration/fixtures/server.crt,priv-key=../../integration/fixtures/server.key.insecure,sign-method=RS256,ttl=1s",
+		authTokenOpts: "jwt,pub-key=../fixtures/server.crt,priv-key=../fixtures/server.key.insecure,sign-method=RS256,ttl=1s",
 	}
 )
 
@@ -131,13 +133,18 @@ type etcdProcessClusterConfig struct {
 	initialToken        string
 	quotaBackendBytes   int64
 	noStrictReconfig    bool
+	enableV2            bool
 	initialCorruptCheck bool
 	authTokenOpts       string
+
+	rollingStart bool
 }
 
 // newEtcdProcessCluster launches a new cluster from etcd processes, returning
 // a new etcdProcessCluster once all nodes are ready to accept client requests.
-func newEtcdProcessCluster(cfg *etcdProcessClusterConfig) (*etcdProcessCluster, error) {
+func newEtcdProcessCluster(t testing.TB, cfg *etcdProcessClusterConfig) (*etcdProcessCluster, error) {
+	skipInShortMode(t)
+
 	etcdCfgs := cfg.etcdServerProcessConfigs()
 	epc := &etcdProcessCluster{
 		cfg:   cfg,
@@ -154,8 +161,14 @@ func newEtcdProcessCluster(cfg *etcdProcessClusterConfig) (*etcdProcessCluster, 
 		epc.procs[i] = proc
 	}
 
-	if err := epc.Start(); err != nil {
-		return nil, err
+	if cfg.rollingStart {
+		if err := epc.RollingStart(); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := epc.Start(); err != nil {
+			return nil, err
+		}
 	}
 	return epc, nil
 }
@@ -240,6 +253,9 @@ func (cfg *etcdProcessClusterConfig) etcdServerProcessConfigs() []*etcdServerPro
 		}
 		if cfg.noStrictReconfig {
 			args = append(args, "--strict-reconfig-check=false")
+		}
+		if cfg.enableV2 {
+			args = append(args, "--enable-v2")
 		}
 		if cfg.initialCorruptCheck {
 			args = append(args, "--experimental-initial-corrupt-check")
@@ -343,6 +359,10 @@ func (epc *etcdProcessCluster) Start() error {
 	return epc.start(func(ep etcdProcess) error { return ep.Start() })
 }
 
+func (epc *etcdProcessCluster) RollingStart() error {
+	return epc.rollingStart(func(ep etcdProcess) error { return ep.Start() })
+}
+
 func (epc *etcdProcessCluster) Restart() error {
 	return epc.start(func(ep etcdProcess) error { return ep.Restart() })
 }
@@ -351,6 +371,22 @@ func (epc *etcdProcessCluster) start(f func(ep etcdProcess) error) error {
 	readyC := make(chan error, len(epc.procs))
 	for i := range epc.procs {
 		go func(n int) { readyC <- f(epc.procs[n]) }(i)
+	}
+	for range epc.procs {
+		if err := <-readyC; err != nil {
+			epc.Close()
+			return err
+		}
+	}
+	return nil
+}
+
+func (epc *etcdProcessCluster) rollingStart(f func(ep etcdProcess) error) error {
+	readyC := make(chan error, len(epc.procs))
+	for i := range epc.procs {
+		go func(n int) { readyC <- f(epc.procs[n]) }(i)
+		// make sure the servers do not start at the same time
+		time.Sleep(time.Second)
 	}
 	for range epc.procs {
 		if err := <-readyC; err != nil {

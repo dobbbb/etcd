@@ -34,6 +34,10 @@ To replace the machine, follow the instructions for [removing the member][remove
 
 If the majority of the cluster is lost or all of the nodes have changed IP addresses, then manual action is necessary to recover safely. The basic steps in the recovery process include [creating a new cluster using the old data][disaster recovery], forcing a single member to act as the leader, and finally using runtime configuration to [add new members][add member] to this new cluster one at a time.
 
+### Recover cluster from minority failure
+
+If a specific member is lost, then it is equivalent to replacing a failed machine. The steps are mentioned in [Replace a failed machine](runtime-configuration.md#replace-a-failed-machine).
+
 ## Cluster reconfiguration operations
 
 With these use cases in mind, the involved operations can be described for each.
@@ -126,7 +130,7 @@ If adding multiple members the best practice is to configure a single member at 
 #### Add a new member as learner
 
 Starting from v3.4, etcd supports adding a new member as learner / non-voting member.
-The motivation and design can be found in [design doc](https://etcd.readthedocs.io/en/latest/server-learner.html).
+The motivation and design can be found in [design doc][design-learner].
 In order to make the process of adding a new member safer,
 and to reduce cluster downtime when the new member is added, it is recommended that the new member is added to cluster
 as a learner until it catches up. This can be described as a three step process:
@@ -243,3 +247,4 @@ It is enabled by default.
 [remove member]: #remove-a-member
 [runtime-reconf]: runtime-reconf-design.md
 [error cases when promoting a member]: #error-cases-when-promoting-a-learner-member
+[design-learner]: ../learning/design-learner.md

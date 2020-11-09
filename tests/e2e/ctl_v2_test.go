@@ -21,8 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"go.etcd.io/etcd/pkg/fileutil"
-	"go.etcd.io/etcd/pkg/testutil"
+	"go.etcd.io/etcd/pkg/v3/testutil"
 )
 
 func TestCtlV2Set(t *testing.T)          { testCtlV2Set(t, &configNoTLS, false) }
@@ -35,12 +34,9 @@ func testCtlV2Set(t *testing.T, cfg *etcdProcessClusterConfig, quorum bool) {
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
 
+	cfg.enableV2 = true
 	epc := setupEtcdctlTest(t, cfg, quorum)
-	defer func() {
-		if errC := epc.Close(); errC != nil {
-			t.Fatalf("error closing etcd processes (%v)", errC)
-		}
-	}()
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	key, value := "foo", "bar"
 
@@ -61,12 +57,9 @@ func testCtlV2Mk(t *testing.T, cfg *etcdProcessClusterConfig, quorum bool) {
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
 
+	cfg.enableV2 = true
 	epc := setupEtcdctlTest(t, cfg, quorum)
-	defer func() {
-		if errC := epc.Close(); errC != nil {
-			t.Fatalf("error closing etcd processes (%v)", errC)
-		}
-	}()
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	key, value := "foo", "bar"
 
@@ -89,12 +82,9 @@ func testCtlV2Rm(t *testing.T, cfg *etcdProcessClusterConfig) {
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
 
+	cfg.enableV2 = true
 	epc := setupEtcdctlTest(t, cfg, true)
-	defer func() {
-		if errC := epc.Close(); errC != nil {
-			t.Fatalf("error closing etcd processes (%v)", errC)
-		}
-	}()
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	key, value := "foo", "bar"
 
@@ -118,12 +108,9 @@ func testCtlV2Ls(t *testing.T, cfg *etcdProcessClusterConfig, quorum bool) {
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
 
+	cfg.enableV2 = true
 	epc := setupEtcdctlTest(t, cfg, quorum)
-	defer func() {
-		if errC := epc.Close(); errC != nil {
-			t.Fatalf("error closing etcd processes (%v)", errC)
-		}
-	}()
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	key, value := "foo", "bar"
 
@@ -144,12 +131,9 @@ func testCtlV2Watch(t *testing.T, cfg *etcdProcessClusterConfig, noSync bool) {
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
 
+	cfg.enableV2 = true
 	epc := setupEtcdctlTest(t, cfg, true)
-	defer func() {
-		if errC := epc.Close(); errC != nil {
-			t.Fatalf("error closing etcd processes (%v)", errC)
-		}
-	}()
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	key, value := "foo", "bar"
 	errc := etcdctlWatch(epc, key, value, noSync)
@@ -172,12 +156,10 @@ func TestCtlV2GetRoleUser(t *testing.T) {
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
 
-	epc := setupEtcdctlTest(t, &configNoTLS, false)
-	defer func() {
-		if err := epc.Close(); err != nil {
-			t.Fatalf("error closing etcd processes (%v)", err)
-		}
-	}()
+	copied := configNoTLS
+	copied.enableV2 = true
+	epc := setupEtcdctlTest(t, &copied, false)
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	if err := etcdctlRoleAdd(epc, "foo"); err != nil {
 		t.Fatalf("failed to add role (%v)", err)
@@ -207,12 +189,10 @@ func testCtlV2UserList(t *testing.T, username string) {
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
 
-	epc := setupEtcdctlTest(t, &configNoTLS, false)
-	defer func() {
-		if err := epc.Close(); err != nil {
-			t.Fatalf("error closing etcd processes (%v)", err)
-		}
-	}()
+	copied := configNoTLS
+	copied.enableV2 = true
+	epc := setupEtcdctlTest(t, &copied, false)
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	if err := etcdctlUserAdd(epc, username, "password"); err != nil {
 		t.Fatalf("failed to add user (%v)", err)
@@ -227,12 +207,10 @@ func TestCtlV2RoleList(t *testing.T) {
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
 
-	epc := setupEtcdctlTest(t, &configNoTLS, false)
-	defer func() {
-		if err := epc.Close(); err != nil {
-			t.Fatalf("error closing etcd processes (%v)", err)
-		}
-	}()
+	copied := configNoTLS
+	copied.enableV2 = true
+	epc := setupEtcdctlTest(t, &copied, false)
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	if err := etcdctlRoleAdd(epc, "foo"); err != nil {
 		t.Fatalf("failed to add role (%v)", err)
@@ -261,6 +239,7 @@ func testCtlV2Backup(t *testing.T, snapCount int, v3 bool) {
 
 	etcdCfg := configNoTLS
 	etcdCfg.snapshotCount = snapCount
+	etcdCfg.enableV2 = true
 	epc1 := setupEtcdctlTest(t, &etcdCfg, false)
 
 	// v3 put before v2 set so snapshot happens after v3 operations to confirm
@@ -293,7 +272,10 @@ func testCtlV2Backup(t *testing.T, snapCount int, v3 bool) {
 	cfg2.dataDirPath = backupDir
 	cfg2.keepDataDir = true
 	cfg2.forceNewCluster = true
+	cfg2.enableV2 = true
 	epc2 := setupEtcdctlTest(t, &cfg2, false)
+	// Make sure a failing test is not leaking resources (running server).
+	defer epc2.Close()
 
 	// check if backup went through correctly
 	if err := etcdctlGet(epc2, "foo1", "bar1", false); err != nil {
@@ -333,13 +315,9 @@ func TestCtlV2AuthWithCommonName(t *testing.T) {
 
 	copiedCfg := configClientTLS
 	copiedCfg.clientCertAuthEnabled = true
-
+	copiedCfg.enableV2 = true
 	epc := setupEtcdctlTest(t, &copiedCfg, false)
-	defer func() {
-		if err := epc.Close(); err != nil {
-			t.Fatalf("error closing etcd processes (%v)", err)
-		}
-	}()
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	if err := etcdctlRoleAdd(epc, "testrole"); err != nil {
 		t.Fatalf("failed to add role (%v)", err)
@@ -368,12 +346,11 @@ func TestCtlV2ClusterHealth(t *testing.T) {
 	os.Setenv("ETCDCTL_API", "2")
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
-	epc := setupEtcdctlTest(t, &configNoTLS, true)
-	defer func() {
-		if err := epc.Close(); err != nil {
-			t.Fatalf("error closing etcd processes (%v)", err)
-		}
-	}()
+
+	copied := configNoTLS
+	copied.enableV2 = true
+	epc := setupEtcdctlTest(t, &copied, true)
+	defer cleanupEtcdProcessCluster(epc, t)
 
 	// all members available
 	if err := etcdctlClusterHealth(epc, "cluster is healthy"); err != nil {
@@ -520,20 +497,21 @@ func etcdctlBackup(clus *etcdProcessCluster, dataDir, backupDir string, v3 bool)
 	return proc.Close()
 }
 
-func mustEtcdctl(t *testing.T) {
-	if !fileutil.Exist(binDir + "/etcdctl") {
-		t.Fatalf("could not find etcdctl binary")
-	}
-}
-
 func setupEtcdctlTest(t *testing.T, cfg *etcdProcessClusterConfig, quorum bool) *etcdProcessCluster {
-	mustEtcdctl(t)
+	skipInShortMode(t)
+
 	if !quorum {
 		cfg = configStandalone(*cfg)
 	}
-	epc, err := newEtcdProcessCluster(cfg)
+	epc, err := newEtcdProcessCluster(t, cfg)
 	if err != nil {
 		t.Fatalf("could not start etcd process cluster (%v)", err)
 	}
 	return epc
+}
+
+func cleanupEtcdProcessCluster(epc *etcdProcessCluster, t *testing.T) {
+	if errC := epc.Close(); errC != nil {
+		t.Fatalf("error closing etcd processes (%v)", errC)
+	}
 }

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"go.etcd.io/etcd/pkg/testutil"
+	"go.etcd.io/etcd/pkg/v3/testutil"
 )
 
 func TestV2CurlNoTLS(t *testing.T)      { testCurlPutGet(t, &configNoTLS) }
@@ -37,7 +37,8 @@ func testCurlPutGet(t *testing.T, cfg *etcdProcessClusterConfig) {
 	// stale reads that will break the test
 	cfg = configStandalone(*cfg)
 
-	epc, err := newEtcdProcessCluster(cfg)
+	cfg.enableV2 = true
+	epc, err := newEtcdProcessCluster(t, cfg)
 	if err != nil {
 		t.Fatalf("could not start etcd process cluster (%v)", err)
 	}
@@ -69,7 +70,9 @@ func TestV2CurlIssue5182(t *testing.T) {
 	defer os.Unsetenv("ETCDCTL_API")
 	defer testutil.AfterTest(t)
 
-	epc := setupEtcdctlTest(t, &configNoTLS, false)
+	copied := configNoTLS
+	copied.enableV2 = true
+	epc := setupEtcdctlTest(t, &copied, false)
 	defer func() {
 		if err := epc.Close(); err != nil {
 			t.Fatalf("error closing etcd processes (%v)", err)

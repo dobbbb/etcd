@@ -14,20 +14,66 @@ Before [starting an upgrade](#upgrade-procedure), read through the rest of this 
 
 **NOTE:** When [migrating from v2 with no v3 data](https://github.com/etcd-io/etcd/issues/9480), etcd server v3.2+ panics when etcd restores from existing snapshots but no v3 `ETCD_DATA_DIR/member/snap/db` file. This happens when the server had migrated from v2 with no previous v3 data. This also prevents accidental v3 data loss (e.g. `db` file might have been moved). etcd requires that post v3 migration can only happen with v3 data. Do not upgrade to newer v3 versions until v3.0 server contains v3 data.
 
+**NOTE:** If your cluster enables auth, rolling upgrade from 3.4 or older version isn't supported because 3.5 [changes a format of WAL entries related to auth](https://github.com/etcd-io/etcd/pull/11943).
+
 Highlighted breaking changes in 3.5.
 
-#### Deprecate `etcd_debugging_mvcc_db_total_size_in_bytes` Prometheus metrics
+#### Deprecated `etcd_debugging_mvcc_db_total_size_in_bytes` Prometheus metrics
 
-v3.4 promoted `etcd_debugging_mvcc_db_total_size_in_bytes` Prometheus metrics to `etcd_mvcc_db_total_size_in_bytes`, in order to encourage etcd storage monitoring. And v3.5 completely deprcates `etcd_debugging_mvcc_db_total_size_in_bytes`.
+v3.5 promoted `etcd_debugging_mvcc_db_total_size_in_bytes` Prometheus metrics to `etcd_mvcc_db_total_size_in_bytes`, in order to encourage etcd storage monitoring. And v3.5 completely deprcates `etcd_debugging_mvcc_db_total_size_in_bytes`.
 
 ```diff
 -etcd_debugging_mvcc_db_total_size_in_bytes
 +etcd_mvcc_db_total_size_in_bytes
 ```
 
-Note that `etcd_debugging_*` namespace metrics have been marked as experimental. As we improve monitoring guide, we will promote more metrics.
+Note that `etcd_debugging_*` namespace metrics have been marked as experimental. As we improve monitoring guide, we may promote more metrics.
 
-#### Deprecated in `etcd --logger capnslog`
+#### Deprecated `etcd_debugging_mvcc_put_total` Prometheus metrics
+
+v3.5 promoted `etcd_debugging_mvcc_put_total` Prometheus metrics to `etcd_mvcc_put_total`, in order to encourage etcd storage monitoring. And v3.5 completely deprcates `etcd_debugging_mvcc_put_total`.
+
+```diff
+-etcd_debugging_mvcc_put_total
++etcd_mvcc_put_total
+```
+
+Note that `etcd_debugging_*` namespace metrics have been marked as experimental. As we improve monitoring guide, we may promote more metrics.
+
+#### Deprecated `etcd_debugging_mvcc_delete_total` Prometheus metrics
+
+v3.5 promoted `etcd_debugging_mvcc_delete_total` Prometheus metrics to `etcd_mvcc_delete_total`, in order to encourage etcd storage monitoring. And v3.5 completely deprcates `etcd_debugging_mvcc_delete_total`.
+
+```diff
+-etcd_debugging_mvcc_delete_total
++etcd_mvcc_delete_total
+```
+
+Note that `etcd_debugging_*` namespace metrics have been marked as experimental. As we improve monitoring guide, we may promote more metrics.
+
+#### Deprecated `etcd_debugging_mvcc_txn_total` Prometheus metrics
+
+v3.5 promoted `etcd_debugging_mvcc_txn_total` Prometheus metrics to `etcd_mvcc_txn_total`, in order to encourage etcd storage monitoring. And v3.5 completely deprcates `etcd_debugging_mvcc_txn_total`.
+
+```diff
+-etcd_debugging_mvcc_txn_total
++etcd_mvcc_txn_total
+```
+
+Note that `etcd_debugging_*` namespace metrics have been marked as experimental. As we improve monitoring guide, we may promote more metrics.
+
+#### Deprecated `etcd_debugging_mvcc_range_total` Prometheus metrics
+
+v3.5 promoted `etcd_debugging_mvcc_range_total` Prometheus metrics to `etcd_mvcc_range_total`, in order to encourage etcd storage monitoring. And v3.5 completely deprcates `etcd_debugging_mvcc_range_total`.
+
+```diff
+-etcd_debugging_mvcc_range_total
++etcd_mvcc_range_total
+```
+
+Note that `etcd_debugging_*` namespace metrics have been marked as experimental. As we improve monitoring guide, we may promote more metrics.
+
+#### Deprecated `etcd --logger capnslog`
 
 v3.4 defaults to `--logger=zap` in order to support multiple log outputs and structured logging.
 
@@ -41,9 +87,9 @@ v3.4 defaults to `--logger=zap` in order to support multiple log outputs and str
 +etcd --logger=zap --log-outputs=stderr,a.log
 ```
 
-TODO(add more monitoring guides); v3.4 adds `etcd --logger=zap` support for structured logging and multiple log outputs. Main motivation is to promote automated etcd monitoring, rather than looking back server logs when it starts breaking. Future development will make etcd log as few as possible, and make etcd easier to monitor with metrics and alerts. **`etcd --logger=capnslog` will be deprecated in v3.5.**
+v3.4 adds `etcd --logger=zap` support for structured logging and multiple log outputs. Main motivation is to promote automated etcd monitoring, rather than looking back server logs when it starts breaking. Future development will make etcd log as few as possible, and make etcd easier to monitor with metrics and alerts. **`etcd --logger=capnslog` will be deprecated in v3.5.**
 
-#### Deprecated in `etcd --log-output`
+#### Deprecated `etcd --log-output`
 
 v3.4 renamed [`etcd --log-output` to `--log-outputs`](https://github.com/etcd-io/etcd/pull/9624) to support multiple log outputs.
 
@@ -52,6 +98,15 @@ v3.4 renamed [`etcd --log-output` to `--log-outputs`](https://github.com/etcd-io
 ```diff
 -etcd --log-output=stderr
 +etcd --log-outputs=stderr
+```
+
+#### Deprecated `etcd --debug` flag (now `--log-level=debug`)
+
+**`etcd --debug` flag has been deprecated.**
+
+```diff
+-etcd --debug
++etcd --log-level debug
 ```
 
 #### Deprecated `etcd --log-package-levels`
